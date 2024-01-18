@@ -6,7 +6,6 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember;
-import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -73,7 +72,7 @@ public class MovieBotApplication extends TelegramLongPollingBot {
                 file = new File("C:\\Users\\jahon\\Downloads\\video_2024-01-19_01-03-40.mp4");
                 inputFile = new InputFile(file);
                 try {
-                    execute(SendDocument.builder().chatId(chatId).document(inputFile).caption("???").build());
+                    execute(SendVideo.builder().chatId(chatId).video(inputFile).caption("???").build());
                 } catch (TelegramApiException exception) {
                     exception.printStackTrace();
                 }
