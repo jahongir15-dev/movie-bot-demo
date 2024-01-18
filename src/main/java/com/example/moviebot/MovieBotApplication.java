@@ -77,6 +77,8 @@ public class MovieBotApplication extends TelegramLongPollingBot {
                 } catch (TelegramApiException exception) {
                     exception.printStackTrace();
                 }
+            } else if (text.equals("Film izlash")) {
+                sendTextMessage(chatId,"Film kodini kiriting");
             }
         } else if (update.hasCallbackQuery()) {
             CallbackQuery callbackQuery = update.getCallbackQuery();
