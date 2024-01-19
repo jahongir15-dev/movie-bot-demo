@@ -27,7 +27,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     Map<Long, String> infVid = new HashMap<>();
     Map<Long, String> name = new HashMap<>();
     Map<Long, String> code = new HashMap<>();
-    Map<Long, InputFile> vid = new HashMap<>();
+    Map<Long, String> vid = new HashMap<>();
     Set<Videos> videos = new HashSet<>();
 
 
@@ -56,8 +56,8 @@ public class TelegramBot extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
             Message message = update.getMessage();
-            long chatId = update.getMessage().getChatId();
-            long userId = update.getMessage().getFrom().getId();
+            long chatId = message.getChatId();
+            long userId = message.getFrom().getId();
             String text = message.getText();
             if (userId == ADMIN_CHAT_ID) {
                 adminCommand(chatId, text, message);
@@ -68,8 +68,8 @@ public class TelegramBot extends TelegramLongPollingBot {
             CallbackQuery callbackQuery = update.getCallbackQuery();
             String data = callbackQuery.getData();
             Long chatId = callbackQuery.getFrom().getId();
-            Integer messageId = update.getMessage().getMessageId();
-            long userId = update.getCallbackQuery().getFrom().getId();
+            Integer messageId = callbackQuery.getMessage().getMessageId(); // Check for null here
+            long userId = callbackQuery.getFrom().getId();
             if (data.equals("Tasdiqlash")) {
                 boolean isSubscribed = checkSubscription(userId);
                 if (isSubscribed) {
@@ -107,8 +107,12 @@ public class TelegramBot extends TelegramLongPollingBot {
             }
         } else if (text.equals("Film izlash")) {
             sendTextMessage(chatId, "Film kodini kiriting");
+            info.put(chatId, "movie code");
+        } else if (info.size() > 0) {
+            getCodeMovie(chatId, text);
         }
     }
+
 
     public void adminCommand(Long chatId, String text, Message message) {
         if (text.equals("/start")) {
@@ -234,6 +238,28 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+    private void getCodeMovie(Long chatId, String text) {
+        if (info.get(chatId).equals("movie code")) {
+            Videos videosByCode = videosRepository.getVideosByCode(text);
+            if (videosByCode != null && text.equals(videosByCode.getCode())) {
+                File file;
+                InputFile inputFile;
+                file = new File("C:\\Users\\jahon\\Downloads\\video_2024-01-19_01-03-40.mp4");
+                inputFile = new InputFile(file);
+                try {
+                    execute(SendVideo.builder().chatId(chatId).video(inputFile).caption("???").build());
+                } catch (TelegramApiException exception) {
+                    exception.printStackTrace();
+                }
+                info.remove(chatId);
+                info.clear();
+            } else {
+                sendTextMessage(chatId, "404");
+            }
+        }
+    }
+
+
     private void addMovieCode(Long chatId, String text, Message message) {
         try {
             if (info.get(chatId).equals("movie name")) {
@@ -248,23 +274,14 @@ public class TelegramBot extends TelegramLongPollingBot {
                 info.put(chatId, "video");
             } else if (info.get(chatId).equals("video")) {
                 sendTextMessage(chatId, "Film saqlandi");
-                if (message.hasDocument()) {
-                    Document document = message.getDocument();
-                    String fileId = document.getFileId();
-                    InputFile inputFile = new InputFile(fileId);
-                    vid.put(chatId, inputFile);
-
-                    Videos build = Videos.builder()
-                            .name(name.get(chatId))
-                            .code(code.get(chatId))
+                vid.put(chatId, text);
+                Videos build = Videos.builder()
+                        .name(name.get(chatId))
+                        .code(code.get(chatId))
 //                            .video(vid.get(chatId))
-                            .build();
-                    videosRepository.save(build);
-
-                    info.remove(chatId);
-                } else {
-                    sendTextMessage(chatId, "Invalid file format. Please send a valid video file.");
-                }
+                        .build();
+                videosRepository.save(build);
+                info.remove(chatId);
             }
         } catch (Exception e) {
             e.printStackTrace(); // Handle the exception appropriately (log it, send a message, etc.)
