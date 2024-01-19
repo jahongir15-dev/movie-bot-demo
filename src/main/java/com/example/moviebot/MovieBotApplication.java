@@ -28,7 +28,6 @@ import java.util.List;
 
 @SpringBootApplication
 public class MovieBotApplication extends TelegramLongPollingBot {
-
     public static void main(String[] args) {
         try {
             SpringApplication.run(MovieBotApplication.class, args);
@@ -77,7 +76,7 @@ public class MovieBotApplication extends TelegramLongPollingBot {
                     exception.printStackTrace();
                 }
             } else if (text.equals("Film izlash")) {
-                sendTextMessage(chatId,"Film kodini kiriting");
+                sendTextMessage(chatId, "Film kodini kiriting");
             }
         } else if (update.hasCallbackQuery()) {
             CallbackQuery callbackQuery = update.getCallbackQuery();
