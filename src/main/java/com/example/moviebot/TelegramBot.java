@@ -3,17 +3,13 @@ package com.example.moviebot;
 import com.example.moviebot.entity.Videos;
 import com.example.moviebot.repository.VideosRepository;
 import lombok.SneakyThrows;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
-import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
-import org.telegram.telegrambots.meta.api.objects.InputFile;
-import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
@@ -28,8 +24,10 @@ import java.util.*;
 public class TelegramBot extends TelegramLongPollingBot {
 
     Map<Long, String> info = new HashMap<>();
+    Map<Long, String> infVid = new HashMap<>();
     Map<Long, String> name = new HashMap<>();
     Map<Long, String> code = new HashMap<>();
+    Map<Long, InputFile> vid = new HashMap<>();
     Set<Videos> videos = new HashSet<>();
 
 
@@ -62,7 +60,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             long userId = update.getMessage().getFrom().getId();
             String text = message.getText();
             if (userId == ADMIN_CHAT_ID) {
-                adminCommand(chatId, text);
+                adminCommand(chatId, text, message);
             } else {
                 userCommand(chatId, text, userId);
             }
@@ -112,14 +110,14 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    public void adminCommand(Long chatId, String text) {
+    public void adminCommand(Long chatId, String text, Message message) {
         if (text.equals("/start")) {
             sendAdminMenuKeyboard(chatId);
         } else if (text.equals("Kodli film qo'shish")) {
             sendTextMessage(chatId, "Film nomi kiriting");
             info.put(chatId, "movie name");
         } else if (info.size() > 0) {
-            addMovieCode(chatId, text);
+            addMovieCode(chatId, text, message);
         }
     }
 
@@ -236,22 +234,41 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    private void addMovieCode(Long chatId, String text) {
-        if (info.get(chatId).equals("movie name")) {
-            sendTextMessage(chatId, "Film kodini kiriting");
-            info.remove(chatId);
-            name.put(chatId, text);
-            info.put(chatId, "code");
-        } else if (info.get(chatId).equals("code")) {
-            sendTextMessage(chatId, "Video saqlandi ");
-            info.remove(chatId);
-            code.put(chatId, text);
-            Videos build = Videos.builder()
-                    .name(name.get(chatId))
-                    .code(code.get(chatId))
-                    .build();
-            info.clear();
-            videosRepository.save(build);
+    private void addMovieCode(Long chatId, String text, Message message) {
+        try {
+            if (info.get(chatId).equals("movie name")) {
+                sendTextMessage(chatId, "Film kodini kiriting");
+                info.remove(chatId);
+                name.put(chatId, text);
+                info.put(chatId, "code");
+            } else if (info.get(chatId).equals("code")) {
+                sendTextMessage(chatId, "Film yuboring");
+                info.remove(chatId);
+                code.put(chatId, text);
+                info.put(chatId, "video");
+            } else if (info.get(chatId).equals("video")) {
+                sendTextMessage(chatId, "Film saqlandi");
+                if (message.hasDocument()) {
+                    Document document = message.getDocument();
+                    String fileId = document.getFileId();
+                    InputFile inputFile = new InputFile(fileId);
+                    vid.put(chatId, inputFile);
+
+                    Videos build = Videos.builder()
+                            .name(name.get(chatId))
+                            .code(code.get(chatId))
+//                            .video(vid.get(chatId))
+                            .build();
+                    videosRepository.save(build);
+
+                    info.remove(chatId);
+                } else {
+                    sendTextMessage(chatId, "Invalid file format. Please send a valid video file.");
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace(); // Handle the exception appropriately (log it, send a message, etc.)
         }
     }
+
 }
