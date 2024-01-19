@@ -6,5 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface VideosRepository extends JpaRepository<Videos, Long> {
-
+    Videos getVideosByCode(String code);
 }

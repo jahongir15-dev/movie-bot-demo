@@ -19,8 +19,6 @@ public class MovieBotApplication {
     public static void main(String[] args) {
         try {
             SpringApplication.run(MovieBotApplication.class, args);
-            MovieBotApplication movieBotApplication = new MovieBotApplication(videosRepository);
-
             TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
             telegramBotsApi.registerBot(new TelegramBot(videosRepository));
         } catch (TelegramApiException err) {
