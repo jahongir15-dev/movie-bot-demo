@@ -7,7 +7,6 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember;
-import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
@@ -27,8 +26,7 @@ import java.util.*;
 
 public class TelegramBot extends TelegramLongPollingBot {
 
-    private static final long MAX_ALLOWED_FILE_SIZE = 1024L * 1024L * 1024L; // 1 GB
-
+    Set<Long> userSet = new HashSet<>();
     Map<Long, String> info = new HashMap<>();
     Map<Long, Video> infVid = new HashMap<>();
     Map<Long, String> name = new HashMap<>();
@@ -61,13 +59,15 @@ public class TelegramBot extends TelegramLongPollingBot {
             Message message = update.getMessage();
             long chatId = message.getChatId();
             long userId = message.getFrom().getId();
+            userSet.add(userId);
+            userSet.remove(ADMIN_CHAT_ID);
             String text = message.getText();
             if (userId == ADMIN_CHAT_ID) {
                 adminCommand(chatId, text, message);
             } else {
                 userCommand(chatId, text, userId);
             }
-        } else if (update.hasMessage() && update.getMessage().hasVideo()) {
+        } else if (update.hasMessage()) {
             Message message = update.getMessage();
             long chatId = message.getChatId();
             long userId = message.getFrom().getId();
@@ -86,10 +86,10 @@ public class TelegramBot extends TelegramLongPollingBot {
                 boolean isSubscribed = checkSubscription(userId);
                 if (isSubscribed) {
                     execute(DeleteMessage.builder().chatId(chatId).messageId(messageId).build());
-                    sendMenuKeyboard(chatId);
+                    sendUserMenuKeyboard(chatId);
                 } else {
                     try {
-                        execute(AnswerCallbackQuery.builder().callbackQueryId(callbackQuery.getId()).text("Siz hali obuna bo'lmadingiz!").build());
+                        execute(AnswerCallbackQuery.builder().callbackQueryId(callbackQuery.getId()).text("Siz hali telegram kanalga obuna bo'lmadingiz!").build());
                     } catch (TelegramApiException exception) {
                         exception.printStackTrace();
                     }
@@ -100,81 +100,72 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     public void userCommand(Long chatId, String text, Long userId) {
         boolean isSubscribed = checkSubscription(userId);
-            if (text.equals("/start")) {
-                if (isSubscribed) {
-                    sendMenuKeyboard(chatId);
-                } else {
-                    sendInlineKeyboard(chatId);
-                }
-            }else if (isSubscribed){
-                if (text.equals("Filmlar")) {
-                    sendTextMessage(chatId, "Hozircha filmlar mavjud emas");
-                } else if (text.equals("Film izlash")) {
-                    sendTextMessage(chatId, "Film kodini kiriting");
-                    info.put(chatId, "movie code");
-                } else if (info.size() > 0) {
-                    getCodeMovie(chatId, text);
-                }
-            }else {
+        if (text.equals("/start")) {
+            if (isSubscribed) {
+                sendUserMenuKeyboard(chatId);
+            } else {
                 sendInlineKeyboard(chatId);
             }
-        }
-
-    public void adminCommand(Long chatId, String text, Message message) {
-        if (text.equals("/start")) {
-            sendAdminMenuKeyboard(chatId);
-        } else if (text.equals("Kodli film qo'shish 🗝️")) {
-            sendTextMessage(chatId, "Film nomi kiriting");
-            info.put(chatId, "movie name");
-        } else if (info.size() > 0) {
-            addMovieCode(chatId, message);
-        } else if (text.equals("Reklama joylash 📢")) {
-            sendTextMessage(chatId, "Reklamani menga yuboring");
-            postAdvertising(message, chatId, text);
-        }
-    }
-
-    private void postAdvertising(Message message, Long chatId, String text) {
-        if (message.hasDocument() || message.hasPhoto() || message.hasText()) {
-            if (message.hasDocument()) {
-                Document document = message.getDocument();
-                String fileId = document.getFileId();
-                InputFile inputFile = new InputFile(fileId);
-                sendTextMessage(chatId, "Reklama joylandi");
-                try {
-                    execute(SendDocument.builder().chatId(ADMIN_CHAT_ID).document(inputFile).caption("#vacation\n\nMa'lumot: " + info.get(chatId) + "\n\n👤 Yuboruvchi: @" + message.getFrom().getUserName()).build());
-                } catch (TelegramApiException exception) {
-                    exception.printStackTrace();
-                }
-            } else if (message.hasPhoto()) {
-                try {
-                    sendTextMessage(chatId, "Reklama joylandi");
-                    PhotoSize photo = message.getPhoto().get(message.getPhoto().size() - 1);
-                    String fileId = photo.getFileId();
-                    InputFile photoInputFile = new InputFile(fileId);
-                    execute(SendPhoto.builder()
-                            .chatId(String.valueOf(ADMIN_CHAT_ID))
-                            .photo(photoInputFile)
-                            .build());
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
+        } else if (isSubscribed) {
+            if (text.equals("Filmlar 🎬")) {
+                sendTextMessage(chatId, "Hozircha filmlar mavjud emas");
+            } else if (text.equals("Kodli filmlar 🔐")) {
+                sendTextMessage(chatId, "Film kodini yuboring:");
+                info.put(chatId, "movie code");
+            } else if (info.size() > 0) {
+                getCodeMovie(chatId, text);
             }
         } else {
-            sendTextMessage(chatId, "Iltimos fayl yuboring");
+            sendInlineKeyboard(chatId);
         }
     }
 
-    private boolean checkSubscription(long userId) {
-        try {
-            GetChatMember getChatMember = new GetChatMember(CHANNEL_USERNAME, userId);
-            ChatMember chatMember = execute(getChatMember);
-            return chatMember.getStatus().equals("member") || chatMember.getStatus().equals("administrator");
-        } catch (TelegramApiException e) {
-            System.err.println("user not subscribed channel");
-            return false;
+    public void adminCommand(Long chatId, String text, Message message) throws TelegramApiException {
+        if (text.equals("/start")) {
+            sendAdminMenuKeyboard(chatId);
+        } else if (text.equals("Kodli film qo'shish 🔐")) {
+            sendTextMessage(chatId, "Film nomi kiriting:");
+            info.put(chatId, "movie name");
+        } else if (text.equals("Statistika 📊")) {
+            int size = userSet.size();
+            sendTextMessage(chatId, "👤 Foydalanuvchil soni: " + size + " nafar");
+        } else if (text.equals("Filmlar ro'yxati 📋")) {
+            List<Videos> allVideos = videosRepository.findAll();
+            StringBuilder messageText = new StringBuilder("🎬 Filmlar ro'yxati 📋\n\n");
+            if (!allVideos.isEmpty()) {
+                for (Videos video : allVideos) {
+                    int value = 0;
+                    messageText.append(value + 1).append(". ").append(video.getName()).append(" ").append(video.getCode()).append("\n");
+                }
+                sendTextMessage(ADMIN_CHAT_ID, messageText.toString());
+            } else {
+                sendTextMessage(ADMIN_CHAT_ID, "Filmar ro'yxati bo'sh");
+            }
+        } else if (info.size() > 0) {
+            addMovieCode(chatId, message);
+        } else if (text.equals("Reklama joylash 🔊")) {
+            sendTextMessage(chatId, "Reklamani menga yuboring");
+        } else if (message.hasPhoto()) {
+            sendTextMessage(chatId, "Reklama muoffaqqiyatli joylandi.");
+            PhotoSize photo = message.getPhoto().get(message.getPhoto().size() - 1);
+            String fileId = photo.getFileId();
+            InputFile photoInputFile = new InputFile(fileId);
+            for (Long aLong : userSet) {
+                execute(SendPhoto.builder().chatId(aLong).photo(photoInputFile).caption(message.getCaption()).build());
+            }
+        } else if (message.hasVideo()) {
+            sendTextMessage(chatId, "Reklama muoffaqqiyatli joylandi.");
+            Video video = message.getVideo();
+            String fileId = video.getFileId();
+            InputFile videoInputFile = new InputFile(fileId);
+            for (Long aLong : userSet) {
+                execute(SendVideo.builder().chatId(aLong).video(videoInputFile).caption(message.getCaption()).build());
+            }
+        } else if (message.hasText()) {
+            sendTextMessage(chatId, text);
         }
     }
+
 
     private void sendInlineKeyboard(Long chatId) {
         InlineKeyboardMarkup inlineKeyboardMarkup = Channel();
@@ -187,14 +178,6 @@ public class TelegramBot extends TelegramLongPollingBot {
             execute(sendMessage);
         } catch (TelegramApiException e) {
             e.printStackTrace();
-        }
-    }
-
-    public void sendTextMessage(Long chatId, String text) {
-        try {
-            execute(SendMessage.builder().chatId(chatId).text(text).build());
-        } catch (TelegramApiException e) {
-            System.err.println("Not Text");
         }
     }
 
@@ -221,7 +204,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         return markup;
     }
 
-    private void sendMenuKeyboard(Long chatId) {
+    private void sendUserMenuKeyboard(Long chatId) {
         ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
         keyboardMarkup.setSelective(false);
         keyboardMarkup.setResizeKeyboard(true);
@@ -230,8 +213,8 @@ public class TelegramBot extends TelegramLongPollingBot {
         List<KeyboardRow> keyboard = new ArrayList<>();
 
         KeyboardRow keyboardButtonsRow1 = new KeyboardRow();
-        keyboardButtonsRow1.add(new KeyboardButton("Filmlar"));
-        keyboardButtonsRow1.add(new KeyboardButton("Film izlash"));
+        keyboardButtonsRow1.add(new KeyboardButton("Filmlar 🎬"));
+        keyboardButtonsRow1.add(new KeyboardButton("Kodli filmlar 🔐"));
 
         keyboard.add(keyboardButtonsRow1);
 
@@ -239,7 +222,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         SendMessage message = new SendMessage();
         message.setChatId(chatId.toString());
-        message.setText("Bo'limni tanlang.");
+        message.setText("Quyidagi bo'limlardan birini tanlang 👇");
         message.setReplyMarkup(keyboardMarkup);
 
         try {
@@ -259,14 +242,19 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         KeyboardRow keyboardButtonsRow1 = new KeyboardRow();
         KeyboardRow keyboardButtonsRow2 = new KeyboardRow();
+        KeyboardRow keyboardButtonsRow3 = new KeyboardRow();
 
-        keyboardButtonsRow1.add(new KeyboardButton("Film qo'shish 📽️"));
-        keyboardButtonsRow1.add(new KeyboardButton("Kodli film qo'shish 🗝️"));
+        keyboardButtonsRow1.add(new KeyboardButton("Film qo'shish 🎬"));
+        keyboardButtonsRow1.add(new KeyboardButton("Kodli film qo'shish 🔐"));
+
         keyboardButtonsRow2.add(new KeyboardButton("Statistika 📊"));
-        keyboardButtonsRow2.add(new KeyboardButton("Reklama joylash 📢"));
+        keyboardButtonsRow2.add(new KeyboardButton("Reklama joylash 🔊"));
+
+        keyboardButtonsRow3.add(new KeyboardButton("Filmlar ro'yxati 📋"));
 
         keyboard.add(keyboardButtonsRow1);
         keyboard.add(keyboardButtonsRow2);
+        keyboard.add(keyboardButtonsRow3);
 
         keyboardMarkup.setKeyboard(keyboard);
 
@@ -307,10 +295,10 @@ public class TelegramBot extends TelegramLongPollingBot {
                     info.remove(chatId);
                     info.clear();
                 } else {
-                    sendTextMessage(chatId, "😔 Afsuski film topilmadi yoki kod xato bo'lishi mumkin");
+                    sendTextMessage(chatId, "😔 Afsuski film topilmadi yoki kod xato bo'lishi mumkin.");
                 }
             } else {
-                sendTextMessage(chatId, "Siz kanalga obuna bo'lmagansiz");
+                sendTextMessage(chatId, "Siz hali telegram kanaga obuna bo'lmagansiz.");
             }
         }
     }
@@ -329,40 +317,56 @@ public class TelegramBot extends TelegramLongPollingBot {
                 info.put(chatId, "video");
             } else if (info.get(chatId).equals("video")) {
                 if (message.getVideo() != null) {
-                    sendTextMessage(chatId, "Film saqlanmoqda...");
+                    Integer messageId = execute(SendMessage.builder().chatId(chatId).text("📥 Film saqlanmoqda...").build()).getMessageId();
                     infVid.put(chatId, message.getVideo());
 
                     Video video = infVid.get(chatId);
                     if (video != null) {
-                        if (video.getFileSize() <= MAX_ALLOWED_FILE_SIZE) {
-                            String fileId = video.getFileId();
+                        String fileId = video.getFileId();
 
-                            byte[] videoBytes = downloadVideoBytes(fileId);
+                        byte[] videoBytes = downloadVideoBytes(fileId);
 
-                            vid.put(chatId, video);
-                            Videos build = Videos.builder()
-                                    .code(code.get(chatId))
-                                    .name(name.get(chatId))
-                                    .videoData(videoBytes)
-                                    .build();
-                            videosRepository.save(build);
-                            sendTextMessage(chatId, "Film saqlandi");
+                        vid.put(chatId, video);
+                        Videos build = Videos.builder()
+                                .code(code.get(chatId))
+                                .name(name.get(chatId))
+                                .videoData(videoBytes)
+                                .build();
+                        videosRepository.save(build);
+                        sendTextMessage(chatId, "Film saqlandi ✅");
+                        execute(DeleteMessage.builder().chatId(chatId).messageId(messageId).build());
 
-                            infVid.remove(chatId);
-                            infVid.clear();
-                            info.clear();
-                        } else {
-                            sendTextMessage(chatId, "Video size exceeds the allowed limit.");
-                        }
+                        infVid.remove(chatId);
+                        infVid.clear();
+                        info.clear();
                     } else {
-                        sendTextMessage(chatId, "Video not found");
+                        sendTextMessage(chatId, "Video mavjud emas");
                     }
                 } else {
-                    sendTextMessage(chatId, "Video not found");
+                    sendTextMessage(chatId, "Iltimos video yuboring");
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private boolean checkSubscription(long userId) {
+        try {
+            GetChatMember getChatMember = new GetChatMember(CHANNEL_USERNAME, userId);
+            ChatMember chatMember = execute(getChatMember);
+            return chatMember.getStatus().equals("member") || chatMember.getStatus().equals("administrator");
+        } catch (TelegramApiException e) {
+            System.err.println("user not subscribed channel");
+            return false;
+        }
+    }
+
+    public void sendTextMessage(Long chatId, String text) {
+        try {
+            execute(SendMessage.builder().chatId(chatId).text(text).build());
+        } catch (TelegramApiException e) {
+            System.err.println("Not Text");
         }
     }
 
