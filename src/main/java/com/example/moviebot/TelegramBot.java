@@ -78,9 +78,14 @@ public class TelegramBot extends TelegramLongPollingBot {
             }
         } else if (update.hasCallbackQuery()) {
             CallbackQuery callbackQuery = update.getCallbackQuery();
+            String callbackQueryId = callbackQuery.getId();
+            AnswerCallbackQuery answerCallbackQuery = new AnswerCallbackQuery();
+            answerCallbackQuery.setShowAlert(true);
             String data = callbackQuery.getData();
             Long chatId = callbackQuery.getFrom().getId();
             Integer messageId = callbackQuery.getMessage().getMessageId();
+            answerCallbackQuery.setText("❌ Kechirasiz siz kanalga a'zo bo'lmadingiz");
+            answerCallbackQuery.setCallbackQueryId(callbackQueryId);
             long userId = callbackQuery.getFrom().getId();
             if (data.equals("Tasdiqlash")) {
                 boolean isSubscribed = checkSubscription(userId);
@@ -89,13 +94,14 @@ public class TelegramBot extends TelegramLongPollingBot {
                     sendUserMenuKeyboard(chatId);
                 } else {
                     try {
-                        execute(AnswerCallbackQuery.builder().callbackQueryId(callbackQuery.getId()).text("Siz hali telegram kanalga obuna bo'lmadingiz!").build());
+                        execute(answerCallbackQuery);  // Use the created AnswerCallbackQuery object
                     } catch (TelegramApiException exception) {
                         exception.printStackTrace();
                     }
                 }
             }
         }
+
     }
 
     public void userCommand(Long chatId, String text, Long userId) {
