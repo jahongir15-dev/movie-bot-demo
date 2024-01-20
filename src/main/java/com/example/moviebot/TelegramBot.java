@@ -5,6 +5,7 @@ import com.example.moviebot.repository.VideosRepository;
 import lombok.SneakyThrows;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
+import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
@@ -18,25 +19,26 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.io.File;
+import java.io.*;
+import java.net.URL;
 import java.util.*;
 
 public class TelegramBot extends TelegramLongPollingBot {
 
+    // Define the maximum allowed file size in bytes
+    private static final long MAX_ALLOWED_FILE_SIZE = 1024L * 1024L * 1024L; // 1 GB
+
     Map<Long, String> info = new HashMap<>();
-    Map<Long, String> infVid = new HashMap<>();
+    Map<Long, Video> infVid = new HashMap<>();
     Map<Long, String> name = new HashMap<>();
     Map<Long, String> code = new HashMap<>();
-    Map<Long, String> vid = new HashMap<>();
-    Set<Videos> videos = new HashSet<>();
-
+    Map<Long, Video> vid = new HashMap<>();
 
     private final VideosRepository videosRepository;
 
     public TelegramBot(VideosRepository videosRepository) {
         this.videosRepository = videosRepository;
     }
-
 
     @Override
     public String getBotUsername() {
@@ -64,11 +66,20 @@ public class TelegramBot extends TelegramLongPollingBot {
             } else {
                 userCommand(chatId, text, userId);
             }
+        } else if (update.hasMessage() && update.getMessage().hasVideo()) {
+            Message message = update.getMessage();
+            long chatId = message.getChatId();
+            long userId = message.getFrom().getId();
+            if (userId == ADMIN_CHAT_ID) {
+                adminCommand(chatId, "Video received", message);
+            } else {
+                userCommand(chatId, message.getText(), userId);
+            }
         } else if (update.hasCallbackQuery()) {
             CallbackQuery callbackQuery = update.getCallbackQuery();
             String data = callbackQuery.getData();
             Long chatId = callbackQuery.getFrom().getId();
-            Integer messageId = callbackQuery.getMessage().getMessageId(); // Check for null here
+            Integer messageId = callbackQuery.getMessage().getMessageId();
             long userId = callbackQuery.getFrom().getId();
             if (data.equals("Tasdiqlash")) {
                 boolean isSubscribed = checkSubscription(userId);
@@ -86,7 +97,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-
     public void userCommand(Long chatId, String text, Long userId) {
         boolean isSubscribed = checkSubscription(userId);
         if (text.equals("/start")) {
@@ -96,15 +106,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 sendInlineKeyboard(chatId);
             }
         } else if (text.equals("Filmlar")) {
-            File file;
-            InputFile inputFile;
-            file = new File("C:\\Users\\jahon\\Downloads\\video_2024-01-19_01-03-40.mp4");
-            inputFile = new InputFile(file);
-            try {
-                execute(SendVideo.builder().chatId(chatId).video(inputFile).caption("???").build());
-            } catch (TelegramApiException exception) {
-                exception.printStackTrace();
-            }
+            sendTextMessage(chatId,"Hozircha filmlar mavjud emas");
         } else if (text.equals("Film izlash")) {
             sendTextMessage(chatId, "Film kodini kiriting");
             info.put(chatId, "movie code");
@@ -113,7 +115,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-
     public void adminCommand(Long chatId, String text, Message message) {
         if (text.equals("/start")) {
             sendAdminMenuKeyboard(chatId);
@@ -121,7 +122,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             sendTextMessage(chatId, "Film nomi kiriting");
             info.put(chatId, "movie name");
         } else if (info.size() > 0) {
-            addMovieCode(chatId, text, message);
+            addMovieCode(chatId, message);
         }
     }
 
@@ -130,7 +131,6 @@ public class TelegramBot extends TelegramLongPollingBot {
             GetChatMember getChatMember = new GetChatMember(CHANNEL_USERNAME, userId);
             ChatMember chatMember = execute(getChatMember);
             return chatMember.getStatus().equals("member") || chatMember.getStatus().equals("administrator");
-
         } catch (TelegramApiException e) {
             System.err.println("user not subscribed channel");
             return false;
@@ -242,15 +242,21 @@ public class TelegramBot extends TelegramLongPollingBot {
         if (info.get(chatId).equals("movie code")) {
             Videos videosByCode = videosRepository.getVideosByCode(text);
             if (videosByCode != null && text.equals(videosByCode.getCode())) {
-                File file;
-                InputFile inputFile;
-                file = new File("C:\\Users\\jahon\\Downloads\\video_2024-01-19_01-03-40.mp4");
-                inputFile = new InputFile(file);
+                byte[] videoData = videosByCode.getVideoData();
+
+                InputStream inputStream = new ByteArrayInputStream(videoData);
+                InputFile inputFile = new InputFile().setMedia(inputStream, "movie.mp4");
+
                 try {
-                    execute(SendVideo.builder().chatId(chatId).video(inputFile).caption("???").build());
+                    execute(SendVideo.builder()
+                            .chatId(chatId)
+                            .video(inputFile)
+                            .caption(videosByCode.getName())
+                            .build());
                 } catch (TelegramApiException exception) {
                     exception.printStackTrace();
                 }
+
                 info.remove(chatId);
                 info.clear();
             } else {
@@ -259,33 +265,73 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-
-    private void addMovieCode(Long chatId, String text, Message message) {
+    private void addMovieCode(Long chatId, Message message) {
         try {
             if (info.get(chatId).equals("movie name")) {
                 sendTextMessage(chatId, "Film kodini kiriting");
                 info.remove(chatId);
-                name.put(chatId, text);
+                name.put(chatId, message.getText());
                 info.put(chatId, "code");
             } else if (info.get(chatId).equals("code")) {
-                sendTextMessage(chatId, "Film yuboring");
                 info.remove(chatId);
-                code.put(chatId, text);
+                code.put(chatId, message.getText());
+                sendTextMessage(chatId, "Videoni yuboring");
                 info.put(chatId, "video");
             } else if (info.get(chatId).equals("video")) {
-                sendTextMessage(chatId, "Film saqlandi");
-                vid.put(chatId, text);
-                Videos build = Videos.builder()
-                        .name(name.get(chatId))
-                        .code(code.get(chatId))
-//                            .video(vid.get(chatId))
-                        .build();
-                videosRepository.save(build);
-                info.remove(chatId);
+                if (message.getVideo() != null) {
+                    sendTextMessage(chatId, " Film saqlanmoqda...");
+                    infVid.put(chatId, message.getVideo());
+
+                    Video video = infVid.get(chatId);
+
+                    if (video != null) {
+                        // Check video size before attempting to download
+                        if (video.getFileSize() <= MAX_ALLOWED_FILE_SIZE) {
+                            String fileId = video.getFileId();
+
+                            byte[] videoBytes = downloadVideoBytes(fileId);
+
+                            vid.put(chatId, video);
+                            Videos build = Videos.builder()
+                                    .code(code.get(chatId))
+                                    .name(name.get(chatId))
+                                    .videoData(videoBytes)
+                                    .build();
+                            videosRepository.save(build);
+
+                            sendTextMessage(chatId, "Film saqlandi");
+
+                            infVid.remove(chatId);
+                            infVid.clear();
+                            info.clear();
+                        } else {
+                            sendTextMessage(chatId, "Video size exceeds the allowed limit.");
+                        }
+                    } else {
+                        sendTextMessage(chatId, "Video not found");
+                    }
+                } else {
+                    sendTextMessage(chatId, "Video not found");
+                }
             }
         } catch (Exception e) {
-            e.printStackTrace(); // Handle the exception appropriately (log it, send a message, etc.)
+            e.printStackTrace();
         }
     }
 
+    private byte[] downloadVideoBytes(String fileId) throws TelegramApiException, IOException {
+        GetFile getFileMethod = new GetFile();
+        getFileMethod.setFileId(fileId);
+        org.telegram.telegrambots.meta.api.objects.File videoFile = execute(getFileMethod);
+
+        try (InputStream inputStream = new URL(videoFile.getFileUrl(getBotToken())).openStream()) {
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            byte[] buffer = new byte[1024];
+            int bytesRead;
+            while ((bytesRead = inputStream.read(buffer)) != -1) {
+                byteArrayOutputStream.write(buffer, 0, bytesRead);
+            }
+            return byteArrayOutputStream.toByteArray();
+        }
+    }
 }
