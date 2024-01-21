@@ -77,31 +77,34 @@ public class TelegramBot extends TelegramLongPollingBot {
                 userCommand(chatId, message.getText(), userId);
             }
         } else if (update.hasCallbackQuery()) {
-            CallbackQuery callbackQuery = update.getCallbackQuery();
-            String callbackQueryId = callbackQuery.getId();
-            AnswerCallbackQuery answerCallbackQuery = new AnswerCallbackQuery();
-            answerCallbackQuery.setShowAlert(true);
-            String data = callbackQuery.getData();
-            Long chatId = callbackQuery.getFrom().getId();
-            Integer messageId = callbackQuery.getMessage().getMessageId();
-            answerCallbackQuery.setText("❌ Kechirasiz siz kanalga a'zo bo'lmadingiz");
-            answerCallbackQuery.setCallbackQueryId(callbackQueryId);
-            long userId = callbackQuery.getFrom().getId();
-            if (data.equals("Tasdiqlash")) {
-                boolean isSubscribed = checkSubscription(userId);
-                if (isSubscribed) {
-                    execute(DeleteMessage.builder().chatId(chatId).messageId(messageId).build());
-                    sendUserMenuKeyboard(chatId);
-                } else {
-                    try {
-                        execute(answerCallbackQuery);  // Use the created AnswerCallbackQuery object
-                    } catch (TelegramApiException exception) {
-                        exception.printStackTrace();
-                    }
+            returnAlertMessage(update);
+        }
+    }
+
+    public void returnAlertMessage(Update update) throws TelegramApiException {
+        CallbackQuery callbackQuery = update.getCallbackQuery();
+        String callbackQueryId = callbackQuery.getId();
+        AnswerCallbackQuery answerCallbackQuery = new AnswerCallbackQuery();
+        answerCallbackQuery.setShowAlert(true);
+        String data = callbackQuery.getData();
+        Long chatId = callbackQuery.getFrom().getId();
+        Integer messageId = callbackQuery.getMessage().getMessageId();
+        answerCallbackQuery.setText("❌ Kechirasiz siz kanalga a'zo bo'lmadingiz");
+        answerCallbackQuery.setCallbackQueryId(callbackQueryId);
+        long userId = callbackQuery.getFrom().getId();
+        if (data.equals("Tasdiqlash")) {
+            boolean isSubscribed = checkSubscription(userId);
+            if (isSubscribed) {
+                execute(DeleteMessage.builder().chatId(chatId).messageId(messageId).build());
+                sendUserMenuKeyboard(chatId);
+            } else {
+                try {
+                    execute(answerCallbackQuery);  // Use the created AnswerCallbackQuery object
+                } catch (TelegramApiException exception) {
+                    exception.printStackTrace();
                 }
             }
         }
-
     }
 
     public void userCommand(Long chatId, String text, Long userId) {
@@ -113,9 +116,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 sendInlineKeyboard(chatId);
             }
         } else if (isSubscribed) {
-            if (text.equals("Filmlar 🎬")) {
-                sendTextMessage(chatId, "Hozircha filmlar mavjud emas");
-            } else if (text.equals("Kodli filmlar 🔐")) {
+            if (text.equals("Kodli filmlar 🔐")) {
                 sendTextMessage(chatId, "Film kodini yuboring:");
                 info.put(chatId, "movie code");
             } else if (info.size() > 0) {
@@ -141,7 +142,7 @@ public class TelegramBot extends TelegramLongPollingBot {
             if (!allVideos.isEmpty()) {
                 for (Videos video : allVideos) {
                     int value = 0;
-                    messageText.append(value + 1).append(". ").append(video.getName()).append(" ").append(video.getCode()).append("\n");
+                    messageText.append(value + 1).append(". ").append(video.getName()).append(" ").append(video.getCode()).append("\n\n");
                 }
                 sendTextMessage(ADMIN_CHAT_ID, messageText.toString());
             } else {
@@ -172,7 +173,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-
     private void sendInlineKeyboard(Long chatId) {
         InlineKeyboardMarkup inlineKeyboardMarkup = Channel();
         SendMessage sendMessage = new SendMessage();
@@ -189,8 +189,10 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     public InlineKeyboardMarkup Channel() {
         List<List<InlineKeyboardButton>> lists = new ArrayList<>();
+
         List<InlineKeyboardButton> link = new ArrayList<>();
         List<InlineKeyboardButton> checkBtn = new ArrayList<>();
+
         InlineKeyboardButton linkButton = new InlineKeyboardButton();
         InlineKeyboardButton check = new InlineKeyboardButton();
 
@@ -205,6 +207,7 @@ public class TelegramBot extends TelegramLongPollingBot {
 
         lists.add(link);
         lists.add(checkBtn);
+
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         markup.setKeyboard(lists);
         return markup;
@@ -219,7 +222,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         List<KeyboardRow> keyboard = new ArrayList<>();
 
         KeyboardRow keyboardButtonsRow1 = new KeyboardRow();
-        keyboardButtonsRow1.add(new KeyboardButton("Filmlar 🎬"));
         keyboardButtonsRow1.add(new KeyboardButton("Kodli filmlar 🔐"));
 
         keyboard.add(keyboardButtonsRow1);
@@ -250,7 +252,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         KeyboardRow keyboardButtonsRow2 = new KeyboardRow();
         KeyboardRow keyboardButtonsRow3 = new KeyboardRow();
 
-        keyboardButtonsRow1.add(new KeyboardButton("Film qo'shish 🎬"));
         keyboardButtonsRow1.add(new KeyboardButton("Kodli film qo'shish 🔐"));
 
         keyboardButtonsRow2.add(new KeyboardButton("Statistika 📊"));
@@ -392,3 +393,4 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 }
+// STOPSHIP: 21/01/2024

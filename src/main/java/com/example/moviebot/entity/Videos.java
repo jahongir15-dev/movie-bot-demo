@@ -1,6 +1,7 @@
 package com.example.moviebot.entity;
 
 import lombok.*;
+
 import javax.persistence.*;
 
 @Data
@@ -13,9 +14,11 @@ public class Videos {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false, unique = true)
     private String code;
 
-    private byte[]  videoData;
+    private byte[] videoData;
 }
