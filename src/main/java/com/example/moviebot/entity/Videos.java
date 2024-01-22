@@ -17,6 +17,18 @@ public class Videos {
     @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false)
+    private String country;
+
+    @Column(nullable = false)
+    private String language;
+
+    @Column(nullable = false)
+    private String quality;
+
+    @Column(nullable = false)
+    private String genre;
+
     @Column(nullable = false, unique = true)
     private String code;
 

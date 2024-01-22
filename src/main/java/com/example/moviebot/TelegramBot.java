@@ -59,6 +59,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         if (update.hasMessage() && update.getMessage().hasText()) {
             Message message = update.getMessage();
             long chatId = message.getChatId();
+            System.out.print(chatId);
             long userId = message.getFrom().getId();
             userSet.add(userId);
             userSet.remove(ADMIN_CHAT_ID);
