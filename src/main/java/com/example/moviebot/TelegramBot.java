@@ -32,6 +32,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     Map<Long, String> name = new HashMap<>();
     Map<Long, String> code = new HashMap<>();
     Map<Long, Video> vid = new HashMap<>();
+    Map<Long, String> ad = new HashMap<>();
 
     private final VideosRepository videosRepository;
 
@@ -152,21 +153,28 @@ public class TelegramBot extends TelegramLongPollingBot {
             addMovieCode(chatId, message);
         } else if (text.equals("Reklama joylash 🔊")) {
             sendTextMessage(chatId, "Reklamani menga yuboring");
-        } else if (message.hasPhoto()) {
-            sendTextMessage(chatId, "Reklama muoffaqqiyatli joylandi.");
-            PhotoSize photo = message.getPhoto().get(message.getPhoto().size() - 1);
-            String fileId = photo.getFileId();
-            InputFile photoInputFile = new InputFile(fileId);
-            for (Long aLong : userSet) {
-                execute(SendPhoto.builder().chatId(aLong).photo(photoInputFile).caption(message.getCaption()).build());
-            }
-        } else if (message.hasVideo()) {
-            sendTextMessage(chatId, "Reklama muoffaqqiyatli joylandi.");
-            Video video = message.getVideo();
-            String fileId = video.getFileId();
-            InputFile videoInputFile = new InputFile(fileId);
-            for (Long aLong : userSet) {
-                execute(SendVideo.builder().chatId(aLong).video(videoInputFile).caption(message.getCaption()).build());
+            ad.put(chatId, "add");
+
+        } else if (ad.size() > 0) {
+            if (message.hasPhoto()) {
+                sendTextMessage(chatId, "Reklama muoffaqqiyatli joylandi.");
+                PhotoSize photo = message.getPhoto().get(message.getPhoto().size() - 1);
+                String fileId = photo.getFileId();
+                InputFile photoInputFile = new InputFile(fileId);
+                for (Long aLong : userSet) {
+                    execute(SendPhoto.builder()
+
+
+                            .chatId(aLong).photo(photoInputFile).caption(message.getCaption()).build());
+                }
+            } else if (message.hasVideo()) {
+                sendTextMessage(chatId, "Reklama muoffaqqiyatli joylandi.");
+                Video video = message.getVideo();
+                String fileId = video.getFileId();
+                InputFile videoInputFile = new InputFile(fileId);
+                for (Long aLong : userSet) {
+                    execute(SendVideo.builder().chatId(aLong).video(videoInputFile).caption(message.getCaption()).build());
+                }
             }
         } else if (message.hasText()) {
             sendTextMessage(chatId, text);
