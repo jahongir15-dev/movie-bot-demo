@@ -1,4 +1,4 @@
-package com.example.moviebot;
+package com.example.moviebot.bot;
 
 import com.example.moviebot.entity.Videos;
 import com.example.moviebot.repository.VideosRepository;
@@ -26,14 +26,6 @@ import java.util.*;
 
 public class TelegramBot extends TelegramLongPollingBot {
 
-    Set<Long> userSet = new HashSet<>();
-    Map<Long, String> info = new HashMap<>();
-    Map<Long, Video> infVid = new HashMap<>();
-    Map<Long, String> name = new HashMap<>();
-    Map<Long, String> code = new HashMap<>();
-    Map<Long, Video> vid = new HashMap<>();
-    Map<Long, String> ad = new HashMap<>();
-
     private final VideosRepository videosRepository;
 
     public TelegramBot(VideosRepository videosRepository) {
@@ -42,15 +34,16 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        return "movie_demo_uz_bot";
+        return BotConfig.BOT_USERNAME;
     }
 
     @Override
     public String getBotToken() {
-        return "6923550332:AAH2yu-lqiEyqqML_3tKfl7PtX2g3YnASp0";
+        return BotConfig.BOT_TOKEN;
     }
 
     private static final long ADMIN_CHAT_ID = 5699941692L;
+
     private static final String CHANNEL_USERNAME = "@test_channel_demo";
 
     @SneakyThrows
@@ -59,10 +52,9 @@ public class TelegramBot extends TelegramLongPollingBot {
         if (update.hasMessage() && update.getMessage().hasText()) {
             Message message = update.getMessage();
             long chatId = message.getChatId();
-            System.out.print(chatId);
             long userId = message.getFrom().getId();
-            userSet.add(userId);
-            userSet.remove(ADMIN_CHAT_ID);
+            BotConfig.IS_USERS.add(userId);
+            BotConfig.IS_USERS.remove(ADMIN_CHAT_ID);
             String text = message.getText();
             if (userId == ADMIN_CHAT_ID) {
                 adminCommand(chatId, text, message);
@@ -120,8 +112,8 @@ public class TelegramBot extends TelegramLongPollingBot {
         } else if (isSubscribed) {
             if (text.equals("Kodli filmlar 🔐")) {
                 sendTextMessage(chatId, "Film kodini yuboring:");
-                info.put(chatId, "movie code");
-            } else if (info.size() > 0) {
+                BotConfig.IS_MOVIE_INF.put(chatId, "movie code");
+            } else if (BotConfig.IS_MOVIE_INF.size() > 0) {
                 getCodeMovie(chatId, text);
             }
         } else {
@@ -134,9 +126,9 @@ public class TelegramBot extends TelegramLongPollingBot {
             sendAdminMenuKeyboard(chatId);
         } else if (text.equals("Kodli film qo'shish 🔐")) {
             sendTextMessage(chatId, "Film nomi kiriting:");
-            info.put(chatId, "movie name");
+            BotConfig.IS_MOVIE_INF.put(chatId, "movie name");
         } else if (text.equals("Statistika 📊")) {
-            int size = userSet.size();
+            int size = BotConfig.IS_USERS.size();
             sendTextMessage(chatId, "👤 Foydalanuvchil soni: " + size + " nafar");
         } else if (text.equals("Filmlar ro'yxati 📋")) {
             List<Videos> allVideos = videosRepository.findAll();
@@ -150,19 +142,19 @@ public class TelegramBot extends TelegramLongPollingBot {
             } else {
                 sendTextMessage(ADMIN_CHAT_ID, "Filmar ro'yxati bo'sh");
             }
-        } else if (info.size() > 0) {
-            addMovieCode(chatId, message);
+        } else if (BotConfig.IS_MOVIE_INF.size() > 0) {
+            addMovie(chatId, message);
         } else if (text.equals("Reklama joylash 🔊")) {
             sendTextMessage(chatId, "Reklamani menga yuboring");
-            ad.put(chatId, "add");
+            BotConfig.IS_ADD.put(chatId, "add");
 
-        } else if (ad.size() > 0) {
+        } else if (BotConfig.IS_ADD.size() > 0) {
             if (message.hasPhoto()) {
                 sendTextMessage(chatId, "Reklama muoffaqqiyatli joylandi.");
                 PhotoSize photo = message.getPhoto().get(message.getPhoto().size() - 1);
                 String fileId = photo.getFileId();
                 InputFile photoInputFile = new InputFile(fileId);
-                for (Long aLong : userSet) {
+                for (Long aLong : BotConfig.IS_USERS) {
                     execute(SendPhoto.builder()
 
 
@@ -173,7 +165,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                 Video video = message.getVideo();
                 String fileId = video.getFileId();
                 InputFile videoInputFile = new InputFile(fileId);
-                for (Long aLong : userSet) {
+                for (Long aLong : BotConfig.IS_USERS) {
                     execute(SendVideo.builder().chatId(aLong).video(videoInputFile).caption(message.getCaption()).build());
                 }
             }
@@ -286,8 +278,9 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
+
     private void getCodeMovie(Long chatId, String text) {
-        if (info.get(chatId).equals("movie code")) {
+        if (BotConfig.IS_MOVIE_INF.get(chatId).equals("movie code")) {
             boolean isSubscribed = checkSubscription(chatId);
 
             if (isSubscribed) {
@@ -302,14 +295,15 @@ public class TelegramBot extends TelegramLongPollingBot {
                         execute(SendVideo.builder()
                                 .chatId(chatId)
                                 .video(inputFile)
-                                .caption(videosByCode.getName())
+                                .caption("🎬Kino: " + videosByCode.getName() + "\n\uD83C\uDDFA\uD83C\uDDFFTarjima: " + videosByCode.getLanguage() + "\n" +
+                                        "🌍Davlat: " + videosByCode.getCountry() + "\n🎞️Sifati: " + videosByCode.getQuality() + "\n⚔Janri: " + videosByCode.getGenre())
                                 .build());
                     } catch (TelegramApiException exception) {
                         exception.printStackTrace();
                     }
 
-                    info.remove(chatId);
-                    info.clear();
+                    BotConfig.IS_MOVIE_INF.remove(chatId);
+                    BotConfig.IS_MOVIE_INF.clear();
                 } else {
                     sendTextMessage(chatId, "😔 Afsuski film topilmadi yoki kod xato bo'lishi mumkin.");
                 }
@@ -319,42 +313,68 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    private void addMovieCode(Long chatId, Message message) {
+    private void addMovie(Long chatId, Message message) {
         try {
-            if (info.get(chatId).equals("movie name")) {
+            if (BotConfig.IS_MOVIE_INF.get(chatId).equals("movie name")) {
+                sendTextMessage(chatId, "Film davlatini kiriting:");
+                BotConfig.IS_MOVIE_INF.remove(chatId);
+                BotConfig.IS_NAME.put(chatId, message.getText());
+                BotConfig.IS_MOVIE_INF.put(chatId, "country");
+            } else if (BotConfig.IS_MOVIE_INF.get(chatId).equals("country")) {
+                sendTextMessage(chatId, "Film qaysi tilda ?");
+                BotConfig.IS_MOVIE_INF.remove(chatId);
+                BotConfig.IS_COUNTRY.put(chatId, message.getText());
+                BotConfig.IS_MOVIE_INF.put(chatId, "language");
+            } else if (BotConfig.IS_MOVIE_INF.get(chatId).equals("language")) {
+                sendTextMessage(chatId, "Film sifatini kiriting:");
+                BotConfig.IS_MOVIE_INF.remove(chatId);
+                BotConfig.IS_LANGUAGE.put(chatId, message.getText());
+                BotConfig.IS_MOVIE_INF.put(chatId, "quality");
+            } else if (BotConfig.IS_MOVIE_INF.get(chatId).equals("quality")) {
+                sendTextMessage(chatId, "Film janrini kiriting:");
+                BotConfig.IS_MOVIE_INF.remove(chatId);
+                BotConfig.IS_QUALITY.put(chatId, message.getText());
+                BotConfig.IS_MOVIE_INF.put(chatId, "genre");
+            } else if (BotConfig.IS_MOVIE_INF.get(chatId).equals("genre")) {
                 sendTextMessage(chatId, "Film kodini kiriting:");
-                info.remove(chatId);
-                name.put(chatId, message.getText());
-                info.put(chatId, "code");
-            } else if (info.get(chatId).equals("code")) {
-                info.remove(chatId);
-                code.put(chatId, message.getText());
+                BotConfig.IS_MOVIE_INF.remove(chatId);
+                BotConfig.IS_GENRE.put(chatId, message.getText());
+                BotConfig.IS_MOVIE_INF.put(chatId, "code");
+            } else if (BotConfig.IS_MOVIE_INF.get(chatId).equals("code")) {
                 sendTextMessage(chatId, "Film yuboring:");
-                info.put(chatId, "video");
-            } else if (info.get(chatId).equals("video")) {
+                BotConfig.IS_MOVIE_INF.remove(chatId);
+                BotConfig.IS_CODE.put(chatId, message.getText());
+                BotConfig.IS_MOVIE_INF.put(chatId, "video");
+            } else if (BotConfig.IS_MOVIE_INF.get(chatId).equals("video")) {
                 if (message.getVideo() != null) {
                     Integer messageId = execute(SendMessage.builder().chatId(chatId).text("📥 Film saqlanmoqda...").build()).getMessageId();
-                    infVid.put(chatId, message.getVideo());
+                    BotConfig.IS_VIDEO_INFO.put(chatId, message.getVideo());
 
-                    Video video = infVid.get(chatId);
+                    Video video = BotConfig.IS_VIDEO_INFO.get(chatId);
                     if (video != null) {
                         String fileId = video.getFileId();
 
                         byte[] videoBytes = downloadVideoBytes(fileId);
 
-                        vid.put(chatId, video);
+                        System.out.println(video.getFileUniqueId());
+
+                        BotConfig.IS_VIDEO.put(chatId, video);
                         Videos build = Videos.builder()
-                                .code(code.get(chatId))
-                                .name(name.get(chatId))
+                                .name(BotConfig.IS_NAME.get(chatId))
+                                .country(BotConfig.IS_COUNTRY.get(chatId))
+                                .language(BotConfig.IS_LANGUAGE.get(chatId))
+                                .quality(BotConfig.IS_QUALITY.get(chatId))
+                                .genre(BotConfig.IS_GENRE.get(chatId))
+                                .code(BotConfig.IS_CODE.get(chatId))
                                 .videoData(videoBytes)
                                 .build();
                         videosRepository.save(build);
                         sendTextMessage(chatId, "Film saqlandi ✅");
                         execute(DeleteMessage.builder().chatId(chatId).messageId(messageId).build());
 
-                        infVid.remove(chatId);
-                        infVid.clear();
-                        info.clear();
+                        BotConfig.IS_VIDEO_INFO.remove(chatId);
+                        BotConfig.IS_VIDEO_INFO.clear();
+                        BotConfig.IS_MOVIE_INF.clear();
                     } else {
                         sendTextMessage(chatId, "Video mavjud emas");
                     }
@@ -364,6 +384,28 @@ public class TelegramBot extends TelegramLongPollingBot {
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    private byte[] downloadVideoBytes(String fileId) throws TelegramApiException {
+        try {
+            GetFile getFileMethod = new GetFile();
+            getFileMethod.setFileId(fileId);
+            org.telegram.telegrambots.meta.api.objects.File videoFile = execute(getFileMethod);
+
+            try (InputStream inputStream = new URL(videoFile.getFileUrl(getBotToken())).openStream()) {
+                ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    byteArrayOutputStream.write(buffer, 0, bytesRead);
+                }
+                return byteArrayOutputStream.toByteArray();
+            }
+        } catch (TelegramApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new TelegramApiException("Error video", e);
         }
     }
 
@@ -385,21 +427,4 @@ public class TelegramBot extends TelegramLongPollingBot {
             System.err.println("Not Text");
         }
     }
-
-    private byte[] downloadVideoBytes(String fileId) throws TelegramApiException, IOException {
-        GetFile getFileMethod = new GetFile();
-        getFileMethod.setFileId(fileId);
-        org.telegram.telegrambots.meta.api.objects.File videoFile = execute(getFileMethod);
-
-        try (InputStream inputStream = new URL(videoFile.getFileUrl(getBotToken())).openStream()) {
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            byte[] buffer = new byte[1024];
-            int bytesRead;
-            while ((bytesRead = inputStream.read(buffer)) != -1) {
-                byteArrayOutputStream.write(buffer, 0, bytesRead);
-            }
-            return byteArrayOutputStream.toByteArray();
-        }
-    }
 }
-// STOPSHIP: 21/01/2024

@@ -1,5 +1,6 @@
 package com.example.moviebot;
 
+import com.example.moviebot.bot.TelegramBot;
 import com.example.moviebot.repository.VideosRepository;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
