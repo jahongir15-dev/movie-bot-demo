@@ -12,6 +12,10 @@ public interface BotConfig {
 
     String BOT_TOKEN = "6923550332:AAH2yu-lqiEyqqML_3tKfl7PtX2g3YnASp0";
 
+    Long ADMIN_CHAT_ID = 5699941692L;
+
+    String CHANNEL_USERNAME = "@test_channel_demo";
+
     Set<Long> IS_USERS = new HashSet<>();
 
     Map<Long, String> IS_MOVIE_INF = new HashMap<>();

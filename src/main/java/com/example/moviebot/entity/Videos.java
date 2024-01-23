@@ -33,5 +33,10 @@ public class Videos {
     @Column(nullable = false, unique = true)
     private String code;
 
+    @Column(nullable = false)
+    private String fileUniqueId;
+
+    @Column(nullable = false)
     private byte[] videoData;
+
 }
