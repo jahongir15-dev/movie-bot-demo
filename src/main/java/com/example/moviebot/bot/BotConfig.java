@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 public interface BotConfig {
+
     String BOT_USERNAME = "movie_demo_uz_bot";
 
     String BOT_TOKEN = "6923550332:AAH2yu-lqiEyqqML_3tKfl7PtX2g3YnASp0";
