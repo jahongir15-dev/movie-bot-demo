@@ -25,9 +25,8 @@ import java.io.*;
 import java.net.URL;
 import java.util.*;
 
-@RequiredArgsConstructor
+    @RequiredArgsConstructor
 public class TelegramBot extends TelegramLongPollingBot {
-
     private final VideosRepository videosRepository;
 
     @Override
@@ -172,7 +171,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         sendMessage.setChatId(chatId);
         sendMessage.setText("Botimizdan to'liq foydalanish uchun telegram kanalga obuna bo'ling va Tekshirish tugmasini bosing.");
         sendMessage.setReplyMarkup(inlineKeyboardMarkup);
-
         try {
             execute(sendMessage);
         } catch (TelegramApiException e) {
@@ -270,7 +268,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         }
     }
 
-
     private void getCodeMovie(Long chatId, String text) {
         if (BotConfig.IS_MOVIE_INF.get(chatId).equals("movie code")) {
             boolean isSubscribed = checkSubscription(chatId);
@@ -307,87 +304,78 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private void addMovie(Long chatId, Message message) {
         try {
-            switch (BotConfig.IS_MOVIE_INF.get(chatId)) {
-                case "movie name":
-                    sendTextMessage(chatId, "Film davlatini kiriting:");
-                    BotConfig.IS_MOVIE_INF.remove(chatId);
-                    BotConfig.IS_NAME.put(chatId, message.getText());
-                    BotConfig.IS_MOVIE_INF.put(chatId, "country");
-                    break;
-                case "country":
-                    sendTextMessage(chatId, "Film qaysi tilda ?");
-                    BotConfig.IS_MOVIE_INF.remove(chatId);
-                    BotConfig.IS_COUNTRY.put(chatId, message.getText());
-                    BotConfig.IS_MOVIE_INF.put(chatId, "language");
-                    break;
-                case "language":
-                    sendTextMessage(chatId, "Film sifatini kiriting:");
-                    BotConfig.IS_MOVIE_INF.remove(chatId);
-                    BotConfig.IS_LANGUAGE.put(chatId, message.getText());
-                    BotConfig.IS_MOVIE_INF.put(chatId, "quality");
-                    break;
-                case "quality":
-                    sendTextMessage(chatId, "Film janrini kiriting:");
-                    BotConfig.IS_MOVIE_INF.remove(chatId);
-                    BotConfig.IS_QUALITY.put(chatId, message.getText());
-                    BotConfig.IS_MOVIE_INF.put(chatId, "genre");
-                    break;
-                case "genre":
-                    sendTextMessage(chatId, "Film kodini kiriting:");
-                    BotConfig.IS_MOVIE_INF.remove(chatId);
-                    BotConfig.IS_GENRE.put(chatId, message.getText());
-                    BotConfig.IS_MOVIE_INF.put(chatId, "code");
-                    break;
-                case "code":
-                    sendTextMessage(chatId, "Film yuboring:");
-                    BotConfig.IS_MOVIE_INF.remove(chatId);
-                    BotConfig.IS_CODE.put(chatId, message.getText());
-                    BotConfig.IS_MOVIE_INF.put(chatId, "video");
-                    break;
-                case "video":
-                    if (message.getVideo() != null) {
-                        Integer messageId = execute(SendMessage.builder().chatId(chatId).text("📥 Film saqlanmoqda...").build()).getMessageId();
-                        BotConfig.IS_VIDEO_INFO.put(chatId, message.getVideo());
+            if (BotConfig.IS_MOVIE_INF.get(chatId).equals("movie name")) {
+                sendTextMessage(chatId, "Film davlatini kiriting:");
+                BotConfig.IS_MOVIE_INF.remove(chatId);
 
-                        Video video = BotConfig.IS_VIDEO_INFO.get(chatId);
-                        if (video != null) {
-                            String fileId = video.getFileId();
+                BotConfig.IS_NAME.put(chatId, message.getText());
+                BotConfig.IS_MOVIE_INF.put(chatId, "country");
+            } else if (BotConfig.IS_MOVIE_INF.get(chatId).equals("country")) {
+                sendTextMessage(chatId, "Film qaysi tilda ?");
+                BotConfig.IS_MOVIE_INF.remove(chatId);
+                BotConfig.IS_COUNTRY.put(chatId, message.getText());
+                BotConfig.IS_MOVIE_INF.put(chatId, "language");
+            } else if (BotConfig.IS_MOVIE_INF.get(chatId).equals("language")) {
+                sendTextMessage(chatId, "Film sifatini kiriting:");
+                BotConfig.IS_MOVIE_INF.remove(chatId);
+                BotConfig.IS_LANGUAGE.put(chatId, message.getText());
+                BotConfig.IS_MOVIE_INF.put(chatId, "quality");
+            } else if (BotConfig.IS_MOVIE_INF.get(chatId).equals("quality")) {
+                sendTextMessage(chatId, "Film janrini kiriting:");
+                BotConfig.IS_MOVIE_INF.remove(chatId);
+                BotConfig.IS_QUALITY.put(chatId, message.getText());
+                BotConfig.IS_MOVIE_INF.put(chatId, "genre");
+            } else if (BotConfig.IS_MOVIE_INF.get(chatId).equals("genre")) {
+                sendTextMessage(chatId, "Film kodini kiriting:");
+                BotConfig.IS_MOVIE_INF.remove(chatId);
+                BotConfig.IS_GENRE.put(chatId, message.getText());
+                BotConfig.IS_MOVIE_INF.put(chatId, "code");
+            } else if (BotConfig.IS_MOVIE_INF.get(chatId).equals("code")) {
+                sendTextMessage(chatId, "Film yuboring:");
+                BotConfig.IS_MOVIE_INF.remove(chatId);
+                BotConfig.IS_CODE.put(chatId, message.getText());
+                BotConfig.IS_MOVIE_INF.put(chatId, "video");
+            } else if (BotConfig.IS_MOVIE_INF.get(chatId).equals("video")) {
+                if (message.getVideo() != null) {
+                    Integer messageId = execute(SendMessage.builder().chatId(chatId).text("📥 Film saqlanmoqda...").build()).getMessageId();
+                    BotConfig.IS_VIDEO_INFO.put(chatId, message.getVideo());
 
-                            byte[] videoBytes = downloadVideoBytes(fileId);
+                    Video video = BotConfig.IS_VIDEO_INFO.get(chatId);
+                    if (video != null) {
+                        String fileId = video.getFileId();
 
-                            System.out.println(video.getFileUniqueId());
+                        byte[] videoBytes = downloadVideoBytes(fileId);
 
-                            BotConfig.IS_VIDEO.put(chatId, video);
-                            Videos build = Videos.builder()
-                                    .name(BotConfig.IS_NAME.get(chatId))
-                                    .country(BotConfig.IS_COUNTRY.get(chatId))
-                                    .language(BotConfig.IS_LANGUAGE.get(chatId))
-                                    .quality(BotConfig.IS_QUALITY.get(chatId))
-                                    .genre(BotConfig.IS_GENRE.get(chatId))
-                                    .code(BotConfig.IS_CODE.get(chatId))
-                                    .videoData(videoBytes)
-                                    .fileUniqueId(video.getFileUniqueId())
-                                    .build();
-                            videosRepository.save(build);
-                            sendTextMessage(chatId, "Film saqlandi ✅");
-                            execute(DeleteMessage.builder().chatId(chatId).messageId(messageId).build());
+                        BotConfig.IS_VIDEO.put(chatId, video);
+                        Videos build = Videos.builder()
+                                .name(BotConfig.IS_NAME.get(chatId))
+                                .country(BotConfig.IS_COUNTRY.get(chatId))
+                                .language(BotConfig.IS_LANGUAGE.get(chatId))
+                                .quality(BotConfig.IS_QUALITY.get(chatId))
+                                .genre(BotConfig.IS_GENRE.get(chatId))
+                                .code(BotConfig.IS_CODE.get(chatId))
+                                .videoData(videoBytes)
+                                .build();
+                        videosRepository.save(build);
+                        sendTextMessage(chatId, "Film saqlandi ✅");
+                        execute(DeleteMessage.builder().chatId(chatId).messageId(messageId).build());
 
-                            BotConfig.IS_VIDEO_INFO.remove(chatId);
-                            BotConfig.IS_VIDEO_INFO.clear();
-                            BotConfig.IS_MOVIE_INF.clear();
-                        } else {
-                            sendTextMessage(chatId, "Video mavjud emas");
-                        }
+                        BotConfig.IS_VIDEO_INFO.remove(chatId);
+                        BotConfig.IS_VIDEO_INFO.clear();
+                        BotConfig.IS_MOVIE_INF.clear();
                     } else {
-                        sendTextMessage(chatId, "Iltimos video yuboring");
+                        sendTextMessage(chatId, "Video mavjud emas");
                     }
-                    break;
+                } else {
+                    sendTextMessage(chatId, "Iltimos video yuboring");
+                }
             }
-        } catch (Exception e) {
+        } catch (
+                Exception e) {
             e.printStackTrace();
         }
-    }
 
+    }
 
     private byte[] downloadVideoBytes(String fileId) throws TelegramApiException {
         try {
